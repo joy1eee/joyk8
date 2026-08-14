@@ -1,0 +1,30 @@
+# === Deployment：管理 Pod 副本，保证始终有 N 个在运行 ===
+apiVersion: apps/v1          # API 版本（Deployment 属于 apps 组）
+kind: Deployment             # 资源类型：Deployment
+metadata:                    # 元数据：这个对象叫什么
+  name: joyk8-app            # Deployment 的名字
+  labels:                    # 标签（给资源打标记，方便筛选）
+    app: joyk8
+spec:                        # 规格：你想要的状态
+  replicas: 3                # 【关键】想要 3 个副本（3 个 Pod 同时跑）
+  selector:                  # 选择器：这个 Deployment 管理哪些 Pod？
+    matchLabels:             # 通过标签匹配
+      app: joyk8             # 管理所有带 "app: joyk8" 标签的 Pod
+  template:                  # Pod 模板：按这个模板创建 Pod
+    metadata:                # Pod 的元数据
+      labels:                # Pod 的标签（必须和上面 selector 对应！）
+        app: joyk8
+    spec:                    # Pod 的规格
+      containers:            # Pod 里跑哪些容器
+        - name: joyk8        # 容器名
+          image: joyk8-app:1.0   # 【关键】用哪个镜像
+          imagePullPolicy: Never # 重要！见下方说明
+          ports:
+            - containerPort: 8000  # 容器监听端口
+          resources:          # 资源限制（生产推荐）
+            requests:         # 最低保障
+              cpu: "100m"     # 100m = 0.1 核 CPU
+              memory: "128Mi"
+            limits:           # 最高上限
+              cpu: "250m"
+              memory: "256Mi"

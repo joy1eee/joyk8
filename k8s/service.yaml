@@ -1,0 +1,13 @@
+# === Service：给一组 Pod 提供固定的访问入口和负载均衡 ===
+apiVersion: v1
+kind: Service
+metadata:
+  name: joyk8-service        # Service 的名字
+spec:
+  type: NodePort             # 【关键】服务类型，见下方说明
+  selector:                  # 选择器：这个 Service 转发流量给哪些 Pod
+    app: joyk8               # 转发给所有 app: joyk8 标签的 Pod
+  ports:
+    - port: 80               # Service 自己的端口（集群内访问用）
+      targetPort: 8000       # 转发到 Pod 的哪个端口（应用监听的端口）
+      nodePort: 30080        # 【关键】节点对外暴露的端口（外部访问用）
