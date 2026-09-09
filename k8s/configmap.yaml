@@ -1,0 +1,10 @@
+# === ConfigMap：把配置数据从容器中剥离 ===
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: joyk8-config              # ConfigMap 的名字
+data:
+  # 这些就是配置项，Pod 可以作为环境变量或文件挂载
+  APP_VERSION: "2.1.0"            # 版本号（注意：k8s 中字符串值要加引号）
+  APP_ENV: "production"           # 环境标识
+  GREETING: "Hello from JoyK8 with ConfigMap! 🎉"

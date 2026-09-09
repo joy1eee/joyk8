@@ -1,32 +1,35 @@
 """
-FastAPI 示例应用 —— 一个简单的问候 API
-这是贯穿整个 k8s 学习的示例程序
+FastAPI 示例应用 —— 支持环境变量配置
 """
-from fastapi import FastAPI
-import socket
+from fastapi import FastAPI, Response, status
+from socket import gethostname
 import os
 import time
 
-# 创建 FastAPI 应用实例
-app = FastAPI(title="JoyK8 学习应用", version="1.0.0")
+app = FastAPI(title="JoyK8 学习应用")
 
-# 记录启动时间（后面用来算运行时长）
+# === 从环境变量读取配置（ConfigMap 注入）===
+APP_VERSION = os.environ.get("APP_VERSION", "2.0.0")
+APP_ENV = os.environ.get("APP_ENV", "development")
+GREETING = os.environ.get("GREETING", "Hello from JoyK8 v2! 🚀🚀")
+
 START_TIME = time.time()
 
 
 @app.get("/")
 def root():
-    """根路径 —— 健康检查用"""
+    """根路径"""
     return {
-        "message": "Hello from JoyK8! 🚀",
+        "message": GREETING,           # 来自配置
         "status": "running",
-        "hostname": socket.gethostname(),  # 显示容器的主机名（k8s 里就是 Pod 名）
+        "version": APP_VERSION,        # 来自配置
+        "hostname": gethostname(),
     }
 
 
 @app.get("/health")
 def health():
-    """健康检查接口 —— k8s 会用这个判断应用是否存活"""
+    """健康检查接口（k8s 探针用）"""
     return {"status": "healthy"}
 
 
@@ -35,8 +38,31 @@ def info():
     """应用信息接口"""
     return {
         "app": "JoyK8",
-        "version": "1.0.0",
-        "hostname": socket.gethostname(),
+        "version": APP_VERSION,
+        "env": APP_ENV,
+        "hostname": gethostname(),
         "uptime_seconds": round(time.time() - START_TIME, 2),
-        "env": os.environ.get("APP_ENV", "development"),  # 读取环境变量（后面 ConfigMap 会用）
+        "config": {
+            "greeting": GREETING,
+        }
     }
+
+
+@app.get("/version")
+def version():
+    """版本接口"""
+    return {"version": APP_VERSION, "env": APP_ENV}
+
+
+# === 新增：用于 readiness 探针（启动检查）===
+@app.get("/ready")
+def ready(response: Response):
+    """
+    就绪探针：应用启动后过 5 秒才返回 200
+    用于测试"探针启动延迟"功能
+    """
+    uptime = time.time() - START_TIME
+    if uptime < 5:  # 启动 5 秒内返回 503
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "starting", "uptime": round(uptime, 2)}
+    return {"status": "ready", "uptime": round(uptime, 2)}

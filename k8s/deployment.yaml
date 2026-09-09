@@ -1,30 +1,62 @@
-# === Deployment：管理 Pod 副本，保证始终有 N 个在运行 ===
-apiVersion: apps/v1          # API 版本（Deployment 属于 apps 组）
-kind: Deployment             # 资源类型：Deployment
-metadata:                    # 元数据：这个对象叫什么
-  name: joyk8-app            # Deployment 的名字
-  labels:                    # 标签（给资源打标记，方便筛选）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: joyk8-app
+  labels:
     app: joyk8
-spec:                        # 规格：你想要的状态
-  replicas: 3                # 【关键】想要 3 个副本（3 个 Pod 同时跑）
-  selector:                  # 选择器：这个 Deployment 管理哪些 Pod？
-    matchLabels:             # 通过标签匹配
-      app: joyk8             # 管理所有带 "app: joyk8" 标签的 Pod
-  template:                  # Pod 模板：按这个模板创建 Pod
-    metadata:                # Pod 的元数据
-      labels:                # Pod 的标签（必须和上面 selector 对应！）
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: joyk8
+  template:
+    metadata:
+      labels:
         app: joyk8
-    spec:                    # Pod 的规格
-      containers:            # Pod 里跑哪些容器
-        - name: joyk8        # 容器名
-          image: joyk8-app:1.0   # 【关键】用哪个镜像
-          imagePullPolicy: Never # 重要！见下方说明
+    spec:
+      containers:
+        - name: joyk8
+          image: joyk8-app:2.1
+          imagePullPolicy: Never
           ports:
-            - containerPort: 8000  # 容器监听端口
-          resources:          # 资源限制（生产推荐）
-            requests:         # 最低保障
-              cpu: "100m"     # 100m = 0.1 核 CPU
+            - containerPort: 8000
+          
+          # === 【新增】从 ConfigMap 注入环境变量 ===
+          envFrom:
+            - configMapRef:
+                name: joyk8-config
+          
+          # === 【新增】健康探针（生产环境必备！）===
+          # startupProbe：启动探针（应用启动慢时给足时间）
+          startupProbe:
+            httpGet:
+              path: /ready           # 访问应用的 /ready 接口
+              port: 8000
+            failureThreshold: 30    # 最多失败 30 次（30×2s = 60 秒启动时间）
+            periodSeconds: 2        # 每 2 秒检查一次
+          
+          # livenessProbe：存活探针（应用死了就重启）
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10  # 启动后等 10 秒再开始检查（给应用时间启动）
+            periodSeconds: 10        # 每 10 秒检查一次
+            timeoutSeconds: 3        # 每次超时 3 秒
+            failureThreshold: 3      # 连续 3 次失败就重启 Pod
+          
+          # readinessProbe：就绪探针（应用没准备好就不接流量）
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            periodSeconds: 5         # 每 5 秒检查
+            failureThreshold: 3      # 连续 3 次失败就从 Service 中移除
+          
+          resources:
+            requests:
+              cpu: "100m"
               memory: "128Mi"
-            limits:           # 最高上限
+            limits:
               cpu: "250m"
               memory: "256Mi"
