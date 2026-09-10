@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: joyk8-ingress
+  annotations:
+    # 启用正则匹配
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    # 用 $2 捕获 /joyk8 之后的路径
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /joyk8(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: joyk8-service
+                port:
+                  number: 80

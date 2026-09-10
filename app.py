@@ -66,3 +66,12 @@ def ready(response: Response):
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "starting", "uptime": round(uptime, 2)}
     return {"status": "ready", "uptime": round(uptime, 2)}
+
+
+@app.get("/stress")
+def stress():
+    """压测接口：故意消耗 CPU"""
+    import hashlib
+    for _ in range(1000000):
+        hashlib.sha256(b"burning CPU").hexdigest()
+    return {"status": "burned"}
